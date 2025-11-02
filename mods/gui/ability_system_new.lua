@@ -1121,7 +1121,7 @@ function get_ability_formspec_new(player)
     -- Background for D-pad (1.5x larger: 2.2 * 1.5 = 3.3)
     local bg_size = 2.6
     table.insert(formspec, string.format("box[%f,%f;%f,%f;#0a0a0a88]", 
-        dp_cx - bg_size/2, dp_cy - bg_size/2, bg_size, bg_size))
+        dp_cx - bg_size, dp_cy - bg_size/2, bg_size, bg_size))
     
     -- D-pad buttons
     table.insert(formspec, string.format("button[%f,%f;%f,%f;nav_up;↑]", 
