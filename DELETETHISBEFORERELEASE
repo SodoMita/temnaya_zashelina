@@ -1,0 +1,23 @@
+Design notes.
+
+As this game is supposed to be a tool to make specific ppl be scared,
+here we simply have scary mobs.
+Mobs:
+- Directly moving through everything. I need to add digging sounds. Generally, rather bad attempt.
+- A* bot with rockets, hands to dig, inventory to place nodes, execute animations.
+  It sometimes stands at distance and if player and it look at each other then it very quickly jumps to quickly kill.
+  It can jump at roof where player is, if is chasing and can't reach.
+  It can dig towards player that made noises nearby.
+- TODO Not scary jumping images for first part of game.
+- TODO Little friendly bot that introduce to game
+- TODO Slime bot that also can fly and penetrate objects, but is harder to kill and has other attack.
+  Generally, less aggressive.
+- TODO Vehicle bot
+- TODO Jet bot
+- TODO Worm bot
+- TODO Another A* bot
+
+This game is supposed to have scary sounds, animations, gradually increase danger, so mobs should evolve.
+
+Palette is grayscale for simplicity.
+
