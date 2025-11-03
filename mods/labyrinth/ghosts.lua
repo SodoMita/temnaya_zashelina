@@ -21,25 +21,32 @@ minetest.register_node("labyrinth:ghost_trigger", {
 minetest.register_node("labyrinth:ghost_sign", {
 	description = "Ghost Sign",
 	tiles = {
-		"labyrinth_ghost_sign_back.png",  -- Back (where it came from)
-		"labyrinth_ghost_sign_front.png",  -- Front (where it moved to)
+		"black.png",
+		"black.png",
+		"black.png",
+		"black.png",
+		"ghost_back.png",  -- Back
+		"ghost_front.png",  -- Front
 	},
 	drawtype = "nodebox",
 	paramtype = "light",
 	paramtype2 = "facedir",
 	node_box = {
 		type = "fixed",
-		fixed = {-0.4, -0.5, -0.05, 0.4, 0.5, 0.05},
+		-- Full width (1 node = -0.5 to 0.5), placed at wall edge (back against wall)
+		fixed = {-0.5, -0.5, -0.5, 0.5, 0.5, -0.4},
 	},
 	selection_box = {
 		type = "fixed",
-		fixed = {-0.4, -0.5, -0.05, 0.4, 0.5, 0.05},
+		fixed = {-0.5, -0.5, -0.5, 0.5, 0.5, -0.4},
 	},
 	groups = {cracky = 3, oddly_breakable_by_hand = 2},
 	is_ground_content = false,
 	sounds = default.node_sound_defaults(),
 	walkable = false,
-	glow = 3,
+	paramtype = "light",
+	sunlight_propagates = true,
+	light_source = 14,  -- Fullbright - emits maximum light
 })
 
 -- Register ghost entity
@@ -47,27 +54,42 @@ minetest.register_entity("labyrinth:ghost", {
 	initial_properties = {
 		physical = false,
 		collide_with_objects = false,
-		collisionbox = {-0.3, -0.3, -0.3, 0.3, 0.3, 0.3},
-		visual = "upright_sprite",
-		textures = {"scary_mob_texture.png"},
-		visual_size = {x = 1, y = 1},
-		glow = 5,
+		collisionbox = {-0.5, -0.5, -0.05, 0.5, 0.5, 0.05},
+		visual = "cube",
+		textures = {
+			"black.png",        -- top
+			"black.png",        -- bottom
+			"black.png",        -- right
+			"black.png",        -- left
+			"ghost_back.png",   -- back (away from wall)
+			"ghost_front.png",  -- front (toward wall)
+		},
+		visual_size = {x = 1, y = 1, z = 0.1},
 		static_save = false,
+		visual_offset = {x = 0, y = 0, z = 0},
+		shaded = false,  -- Disable shading for fullbright appearance
+		glow = 14,  -- Match node's light level
 	},
 	
 	slide_direction = {x = 0, y = 0, z = 0},
 	lifetime = 0,
-	max_lifetime = 3,  -- Despawn after 3 seconds
+	max_lifetime = 3,  -- Total lifetime before despawn
 	slide_speed = 2,
 	total_distance = 0,
 	max_distance = 1,  -- Move only 1 node
 	trigger_pos = nil,  -- Store trigger position for replacement
+	wall_offset = nil,  -- Store wall offset for sign placement
+	bounce_start_time = nil,  -- When bounce animation starts
+	bounce_duration = 1.2,  -- Duration of bounce animation
+	wait_duration = 0.3,  -- Wait time after bounce before despawn
+	initial_pos = nil,  -- Starting position for bounce
+	sign_spawned = false,  -- Track if sign has been spawned
 	
 	on_activate = function(self, staticdata, dtime_s)
 		-- Play scary sound on spawn
 		local pos = self.object:get_pos()
 		if pos then
-			minetest.sound_play("scary_attack", {pos = pos, gain = 1.0, max_hear_distance = 15})
+			minetest.sound_play("boo", {pos = pos, gain = 1.0, max_hear_distance = 15})
 		end
 		
 		-- Parse slide direction from staticdata if provided
@@ -81,34 +103,105 @@ minetest.register_entity("labyrinth:ghost", {
 	
 	on_step = function(self, dtime)
 		self.lifetime = self.lifetime + dtime
+		local pos = self.object:get_pos()
+		if not pos then return end
 		
-		-- Despawn after max lifetime
-		if self.lifetime >= self.max_lifetime then
-			-- Replace trigger with ghost sign before despawning
-			if self.trigger_pos then
-				local node = minetest.get_node(self.trigger_pos)
-				if node.name == "labyrinth:ghost_trigger" then
-					-- Calculate facedir from slide direction
-					local facedir = 0
-					if self.slide_direction.x > 0.5 then
-						facedir = 3  -- +X
-					elseif self.slide_direction.x < -0.5 then
-						facedir = 1  -- -X
-					elseif self.slide_direction.z > 0.5 then
-						facedir = 2  -- +Z
-					else
-						facedir = 0  -- -Z
-					end
-					minetest.set_node(self.trigger_pos, {name = "labyrinth:ghost_sign", param2 = facedir})
-				end
+		-- Check if we should start bouncing
+		if not self.bounce_start_time and self.total_distance >= self.max_distance then
+			self.bounce_start_time = self.lifetime
+			-- Calculate perpendicular offset (toward wall, perpendicular to movement)
+			-- Entity visual is centered, sign back is at edge, so offset by 0.05 toward wall
+			local perp_offset = {x = 0, y = 0, z = 0}
+			if math.abs(self.slide_direction.x) > 0.5 then
+				-- Moving in X direction, offset in Z perpendicular
+				perp_offset.z = -0.05
+			else
+				-- Moving in Z direction, offset in X perpendicular  
+				perp_offset.x = -0.05
 			end
-			self.object:remove()
+			local adjusted_pos = vector.add(pos, perp_offset)
+			self.object:set_pos(adjusted_pos)
+			self.initial_pos = adjusted_pos
+			
+			-- Debug: log final position (should be at wall edge)
+			if self.trigger_pos and self.wall_offset then
+				local expected_pos = {x = self.trigger_pos.x + 0.5 - self.slide_direction.x * 0.5, 
+				                      y = self.trigger_pos.y, 
+				                      z = self.trigger_pos.z + 0.5 - self.slide_direction.z * 0.5}
+				minetest.log("action", string.format("[labyrinth] Ghost reached (%.2f, %.2f, %.2f), expected wall edge (%.2f, %.2f, %.2f), offset: %.2f",
+					pos.x, pos.y, pos.z,
+					expected_pos.x, expected_pos.y, expected_pos.z,
+					math.sqrt((pos.x - expected_pos.x)^2 + (pos.z - expected_pos.z)^2)))
+			end
+		end
+		
+		-- Bounce animation
+		if self.bounce_start_time then
+			local bounce_elapsed = self.lifetime - self.bounce_start_time
+			local total_duration = self.bounce_duration + self.wait_duration
+			
+			if bounce_elapsed >= total_duration then
+				-- Wait complete - spawn sign FIRST, then despawn entity (avoid 1-frame gap)
+				if not self.sign_spawned and self.trigger_pos then
+					local node = minetest.get_node(self.trigger_pos)
+					if node.name == "labyrinth:ghost_trigger" then
+						-- Calculate facedir from slide direction (rotated 90 degrees)
+						local facedir = 0
+						if self.slide_direction.x > 0.5 then
+							facedir = 2  -- +X -> facedir 2
+						elseif self.slide_direction.x < -0.5 then
+							facedir = 0  -- -X -> facedir 0
+						elseif self.slide_direction.z > 0.5 then
+							facedir = 3  -- +Z -> facedir 3
+						else
+							facedir = 1  -- -Z -> facedir 1
+						end
+						-- Place node BEFORE removing entity
+						minetest.set_node(self.trigger_pos, {name = "labyrinth:ghost_sign", param2 = facedir})
+						self.sign_spawned = true
+					end
+				end
+				-- Now remove entity (sign is already in place)
+				self.object:remove()
+				return
+			
+			elseif bounce_elapsed < self.bounce_duration then
+				-- Spring bounce animation with damped oscillation
+				local progress = bounce_elapsed / self.bounce_duration
+				
+				-- Damped spring oscillation formula
+				local frequency = 8  -- Higher frequency = more bounces
+				local damping = 4  -- How quickly amplitude decreases
+				
+				-- Exponential decay envelope
+				local envelope = math.exp(-damping * progress)
+				
+				-- Oscillation (sine wave with increasing frequency)
+				local oscillation = math.sin(frequency * math.pi * progress)
+				
+				-- Combined spring motion (horizontal along slide direction)
+				local horizontal_amplitude = 0.2
+				local horizontal_offset = horizontal_amplitude * envelope * oscillation
+				
+				-- Vertical bounce (also damped)
+				local vertical_amplitude = 0.15
+				local vertical_offset = vertical_amplitude * envelope * math.abs(oscillation)
+				
+				-- Apply both horizontal and vertical offsets
+				local bounce_offset = vector.multiply(self.slide_direction, horizontal_offset)
+				bounce_offset.y = vertical_offset
+				
+				local new_pos = vector.add(self.initial_pos, bounce_offset)
+				self.object:set_pos(new_pos)
+			else
+				-- Wait period - ensure entity stays at exact initial position
+				self.object:set_pos(self.initial_pos)
+			end
 			return
 		end
 		
 		-- Slide in the specified direction (but limit to 1 node)
-		local pos = self.object:get_pos()
-		if pos and self.slide_direction then
+		if self.slide_direction then
 			local move_dist = self.slide_speed * dtime
 			
 			-- Check if we've moved far enough
@@ -149,8 +242,9 @@ minetest.register_globalstep(function(dtime)
 					local node = minetest.get_node(check_pos)
 					
 					if node.name == "labyrinth:ghost_trigger" then
-						-- Create unique key for this trigger position
-						local trigger_key = minetest.pos_to_string(check_pos)
+						-- Round to block position for unique key
+						local block_pos = vector.round(check_pos)
+						local trigger_key = minetest.pos_to_string(block_pos)
 						
 						-- Only trigger once
 						if not labyrinth.triggered_ghosts[trigger_key] then
@@ -167,9 +261,7 @@ minetest.register_globalstep(function(dtime)
 							if dir_str and dir_str ~= "" then
 								slide_dir = minetest.deserialize(dir_str)
 							else
-								-- Determine direction from adjacent wall
-								-- Round to block position first!
-								local block_pos = vector.round(check_pos)
+								-- Determine direction from adjacent wall (block_pos already rounded above)
 								for _, offset in ipairs({{1,0,0},{-1,0,0},{0,0,1},{0,0,-1}}) do
 									local check_wall = vector.add(block_pos, {x=offset[1], y=offset[2], z=offset[3]})
 									local wall_node = minetest.get_node(check_wall)
@@ -200,10 +292,11 @@ minetest.register_globalstep(function(dtime)
 								goto skip_ghost
 							end
 							
-							-- Spawn ghost INSIDE the wall (1.5 blocks into wall)
-							-- Use block_pos for spawning too
-							local block_pos = vector.round(check_pos)
-							local spawn_pos = vector.add(block_pos, vector.multiply(wall_offset, 1.5))
+				-- Spawn ghost INSIDE the wall (1.1 blocks into wall, closer to destination)
+				-- Add 0.5 to center in XZ plane
+				local spawn_pos = vector.add(block_pos, vector.multiply(wall_offset, 1.1))
+				spawn_pos.x = spawn_pos.x + 0.5
+				spawn_pos.z = spawn_pos.z + 0.5
 							local ghost = minetest.add_entity(spawn_pos, "labyrinth:ghost")
 							
 							if ghost then
@@ -212,16 +305,33 @@ minetest.register_globalstep(function(dtime)
 									lua_ent.slide_direction = slide_dir
 									lua_ent.trigger_pos = block_pos
 									
-									-- Set ghost rotation based on slide direction
+									-- Calculate destination: at wall edge, not block center
+									-- The sign will be placed against the wall, entity should end up there too
+									local trigger_world = {x = block_pos.x + 0.5, y = spawn_pos.y, z = block_pos.z + 0.5}
+									local dx = trigger_world.x - spawn_pos.x
+									local dz = trigger_world.z - spawn_pos.z
+									local distance = math.sqrt(dx*dx + dz*dz) - 0.5  -- Stop 0.5 blocks short (at wall edge)
+									lua_ent.max_distance = distance
+									
+									-- Store wall offset for sign placement
+									lua_ent.wall_offset = wall_offset
+									
+									-- Debug log
+									minetest.log("action", string.format("[labyrinth] Ghost spawn at (%.2f, %.2f, %.2f), destination at (%.2f, %.2f, %.2f), distance: %.2f",
+										spawn_pos.x, spawn_pos.y, spawn_pos.z,
+										trigger_world.x - slide_dir.x * 0.5, trigger_world.y, trigger_world.z - slide_dir.z * 0.5,
+										distance))
+									
+									-- Set ghost rotation based on slide direction (flip 180 to face outward)
 									local yaw = 0
 									if slide_dir.x > 0.5 then
-										yaw = math.pi / 2  -- +X (east)
+										yaw = math.pi  -- +X (east)
 									elseif slide_dir.x < -0.5 then
-										yaw = -math.pi / 2  -- -X (west)
+										yaw = 0  -- -X (west)
 									elseif slide_dir.z > 0.5 then
-										yaw = 0  -- +Z (south)
+										yaw = math.pi / 2  -- +Z (south)
 									else
-										yaw = math.pi  -- -Z (north)
+										yaw = -math.pi / 2  -- -Z (north)
 									end
 									ghost:set_yaw(yaw)
 								end

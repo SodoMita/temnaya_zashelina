@@ -196,23 +196,21 @@ function player_api.globalstep()
 				animation_speed_mod = animation_speed_mod / 2
 			end
 
-			-- Determine if we should force a 1-node-high profile (crawl)
-			local force_crawl = false
-			-- Enable crawling while sneaking, or if there isn't enough headroom to stand
-			if controls.sneak then
-				force_crawl = true
-			else
+			-- Determine if we should use a 1-node-high profile (crawl)
+			local want_crawl = false
+			-- Use Zoom key (commonly Z) as explicit crouch/crawl trigger if available
+			if controls.zoom then
+				want_crawl = true
+			end
+			-- Auto-crawl only if there isn't enough headroom to stand fully (immediate head node)
+			if not want_crawl then
 				local pos = player:get_pos()
 				if pos then
-					-- Check two nodes above the player's feet; if either is walkable, keep low profile
 					local p1 = {x = pos.x, y = math.floor(pos.y + 0.5) + 1, z = pos.z}
-					local p2 = {x = p1.x, y = p1.y + 1, z = p1.z}
 					local n1 = minetest.get_node(p1)
-					local n2 = minetest.get_node(p2)
 					local def1 = minetest.registered_nodes[n1.name] or {}
-					local def2 = minetest.registered_nodes[n2.name] or {}
-					if def1.walkable == true or def2.walkable == true then
-						force_crawl = true
+					if def1.walkable == true then
+						want_crawl = true
 					end
 				end
 			end
@@ -220,9 +218,10 @@ function player_api.globalstep()
 			-- Apply animations based on what the player is doing
 			if player:get_hp() == 0 then
 				player_set_animation(player, "lay")
-			elseif force_crawl then
-				-- Use the sit animation which sets a 1.0 high collisionbox to fit 1-node-high spaces
-				player_set_animation(player, "sit", animation_speed_mod)
+			elseif want_crawl then
+				-- Prefer dedicated 'crawl' animation if defined by the model; otherwise fallback to 'sit'
+				local target = (model.animations and model.animations.crawl) and "crawl" or "sit"
+				player_set_animation(player, target, animation_speed_mod)
 			elseif controls.up or controls.down or controls.left or controls.right then
 				if controls.LMB or controls.RMB then
 					player_set_animation(player, "walk_mine", animation_speed_mod)
