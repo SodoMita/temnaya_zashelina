@@ -182,7 +182,7 @@ local function show_achievement_popup(player, achievement)
         position = {x = 0.5, y = 0.2},
         offset = {x = 0, y = 0},
         text = "gui_blank.png^[colorize:" .. tier.color .. ":180",
-        scale = {x = 20, y = 8},
+        scale = {x = 300, y = 150},
         alignment = {x = 0, y = 0},
         z_index = 1000,
     })

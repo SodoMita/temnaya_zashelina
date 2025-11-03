@@ -61,6 +61,44 @@ register_achievement({
 -- ===============================
 
 register_achievement({
+    id = "first_ghost",
+    name = "Spooked!",
+    description = "Encounter your first ghost in the labyrinth",
+    icon = "👻",
+    category = "exploration",
+    max_progress = 1,
+    reward_xp = 25,
+    graph_x = 0,
+    graph_y = 2.5,
+})
+
+register_achievement({
+    id = "ghost_hunter",
+    name = "Ghost Hunter",
+    description = "Trigger 10 ghosts",
+    icon = "🕯️",
+    category = "exploration",
+    max_progress = 10,
+    reward_xp = 75,
+    requires = {"first_ghost"},
+    graph_x = 1,
+    graph_y = 2.5,
+})
+
+register_achievement({
+    id = "ghost_veteran",
+    name = "Ghost Veteran",
+    description = "Trigger 50 ghosts",
+    icon = "💀",
+    category = "exploration",
+    max_progress = 50,
+    reward_xp = 200,
+    requires = {"ghost_hunter"},
+    graph_x = 2,
+    graph_y = 2.5,
+})
+
+register_achievement({
     id = "visit_floating_island",
     name = "Sky Explorer",
     description = "Visit a floating island",

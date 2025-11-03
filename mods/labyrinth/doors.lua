@@ -163,7 +163,44 @@ on_step = function(self, dtime)
 		end
 	end,
 
-_open = function(self, force)
+	_try_auto_close = function(self)
+		if not self.object or self._state ~= "open" then
+			return
+		end
+
+		if self._auto_at and minetest.get_gametime() < self._auto_at then
+			minetest.after(1, function()
+				if self and self._try_auto_close then
+					self:_try_auto_close()
+				end
+			end)
+			return
+		end
+
+		local pos = self.anchor_pos
+		local objs = minetest.get_objects_inside_radius(pos, 1.5)
+		local can_close = true
+		for _, obj in ipairs(objs) do
+			local le = obj:get_luaentity()
+			if obj:is_player() or (le and le.name ~= "labyrinth:sliding_door_entity" and le.name ~= "labyrinth:sliding_door_collider") then
+				can_close = false
+				break
+			end
+		end
+
+		if can_close then
+			self:_close()
+		else
+			self._auto_at = minetest.get_gametime() + 1
+			minetest.after(1, function()
+				if self and self._try_auto_close then
+					self:_try_auto_close()
+				end
+			end)
+		end
+	end,
+
+	_open = function(self, force)
 		local now = minetest.get_gametime()
 		if (self._state == "open" and not force) or (not force and now - (self._last_toggle or 0) < 0.2) then return end
 		self._last_toggle = now
@@ -174,9 +211,8 @@ _open = function(self, force)
 		minetest.get_meta(self.anchor_pos):set_string("open", "true")
 		self._auto_at = now + 5
 		minetest.after(5, function()
-			if not self.object then return end
-			if self._state == "open" and minetest.get_gametime() >= (self._auto_at or 0) then
-				self:_close()
+			if self and self._try_auto_close then
+				self:_try_auto_close()
 			end
 		end)
 	end,

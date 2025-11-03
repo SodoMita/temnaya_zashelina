@@ -22,6 +22,9 @@ dofile(modpath .. "/ability_system.lua")
 -- NEW Advanced ability system with graph! ⚡
 dofile(modpath .. "/ability_system_new.lua")
 
+-- Running/Sprint system with Aux1 key 🏃
+dofile(modpath .. "/running_system.lua")
+
 -- Unified inventory with tabs 📋
 dofile(modpath .. "/unified_inventory.lua")
 

@@ -75,12 +75,60 @@ local abilities = {
         name = "Dash",
         type = "toggle",
         icon = "💨",
-        description = "Quick burst of speed",
+        description = "10x speed burst, 500x stamina drain",
         category = "movement",
         cost = 2,
         max_level = 1,
         requires = "run_speed",
         graph_x = 2,
+        graph_y = 0,
+        priv = nil,
+    },
+    {
+        id = "sprint_stamina",
+        name = "Sprint Stamina",
+        type = "stat",
+        icon = "🫁",
+        description = "Increase sprint stamina",
+        category = "movement",
+        cost = 1,
+        max_level = 5,
+        requires = "walk_speed",
+        graph_x = 0,
+        graph_y = -1,
+        stat_key = "sprint_stamina",
+        base_min = 100,
+        base_max = 100,
+        unlock_per_level = 20,
+    },
+    {
+        id = "sprint_efficiency",
+        name = "Sprint Efficiency",
+        type = "stat",
+        icon = "⚡",
+        description = "Reduce sprint stamina drain",
+        category = "movement",
+        cost = 2,
+        max_level = 3,
+        requires = "sprint_stamina",
+        graph_x = 1,
+        graph_y = -1,
+        stat_key = "sprint_efficiency",
+        base_min = 1.0,
+        base_max = 1.0,
+        unlock_per_level = -0.15,
+    },
+    {
+        id = "sprint_hud",
+        name = "Sprint HUD",
+        type = "toggle",
+        icon = "📊",
+        description = "Show sprint stamina HUD",
+        category = "utility",
+        cost = 0,
+        max_level = 1,
+        requires = nil,
+        graph_x = -1,
         graph_y = 0,
         priv = nil,
     },
@@ -828,19 +876,24 @@ end
 
 -- Get player ability data
 local function get_ability_data(player)
+    if not player then return nil end
     local meta = player:get_meta()
+    if not meta then return nil end
     local data_str = meta:get_string("abilities_v2")
-    if data_str == "" then data_str = "{}" end
-    local data = minetest.deserialize(data_str) or {}
-    
-    if not data.unlocked then
-        data.unlocked = {}  -- {ability_id = level}
-        data.stat_points = 0
-        data.stat_values = {}  -- {stat_key = value}
-        data.toggles = {}  -- {ability_id = true/false}
-        data.scroll_x = 0  -- Horizontal scroll position (0-1000)
-        data.scroll_y = 0  -- Vertical scroll position (0-1000)
+    if not data_str or data_str == "" then 
+        data_str = "return {}" 
     end
+    
+    local success, data = pcall(minetest.deserialize, data_str)
+    if not success or not data or type(data) ~= "table" then
+        data = {}
+    end
+    
+    -- Ensure all required fields exist with defaults
+    data.unlocked = data.unlocked or {}
+    data.stat_points = data.stat_points or 0
+    data.stat_values = data.stat_values or {}
+    data.toggles = data.toggles or {}
     data.scroll_x = data.scroll_x or 0
     data.scroll_y = data.scroll_y or 0
     
@@ -849,7 +902,9 @@ end
 
 -- Save ability data
 local function save_ability_data(player, data)
+    if not player or not data then return end
     local meta = player:get_meta()
+    if not meta then return end
     meta:set_string("abilities_v2", minetest.serialize(data))
 end
 
@@ -882,29 +937,42 @@ end
 
 -- Apply stat values to player
 local function apply_stats(player)
+    if not player then return end
+    
     local data = get_ability_data(player)
+    if not data then return end
     
     -- Apply speed
-    local speed = data.stat_values.speed or 1.0
-    local jump = data.stat_values.jump or 1.0
+    local speed = (data.stat_values and data.stat_values.speed) or 1.0
+    local jump = (data.stat_values and data.stat_values.jump) or 1.0
     
-    player:set_physics_override({
-        speed = speed,
-        jump = jump,
-    })
+    pcall(function()
+        player:set_physics_override({
+            speed = speed,
+            jump = jump,
+        })
+    end)
 end
 
 -- Apply toggle abilities
 local function apply_toggles(player)
+    if not player then return end
+    
     local data = get_ability_data(player)
-    local privs = minetest.get_player_privs(player:get_player_name())
+    if not data then return end
+    
+    local name = player:get_player_name()
+    if not name then return end
+    
+    local privs = minetest.get_player_privs(name)
+    if not privs then return end
     
     for _, ability in ipairs(abilities) do
         if ability.type == "toggle" and ability.priv then
-            local level = data.unlocked[ability.id] or 0
+            local level = (data.unlocked and data.unlocked[ability.id]) or 0
             if level > 0 then
                 -- Ability unlocked, check toggle state
-                if data.toggles[ability.id] then
+                if data.toggles and data.toggles[ability.id] then
                     privs[ability.priv] = true
                 else
                     privs[ability.priv] = nil
@@ -913,17 +981,29 @@ local function apply_toggles(player)
         end
     end
     
-    minetest.set_player_privs(player:get_player_name(), privs)
+    pcall(function()
+        minetest.set_player_privs(name, privs)
+    end)
 end
 
 -- Generate ability graph formspec
 function get_ability_formspec_new(player)
+    if not player then return "" end
+    
     local data = get_ability_data(player)
-    local exp = tonumber(player:get_meta():get_string("experience")) or 0
+    if not data then return "" end
+    
+    local meta = player:get_meta()
+    if not meta then return "" end
+    
+    local exp = tonumber(meta:get_string("experience")) or 0
     local level = math.floor(exp / 100) + 1
     
     -- Get player model info
-    local player_textures = player_api.get_textures(player) or {"character.png"}
+    local player_textures = {"character.png"}
+    if player_api and player_api.get_textures then
+        player_textures = player_api.get_textures(player) or {"character.png"}
+    end
     
     local formspec = {
         "formspec_version[4]",
@@ -1371,11 +1451,22 @@ minetest.register_chatcommand("givestatpoints", {
 
 -- Apply abilities on join
 minetest.register_on_joinplayer(function(player)
-    minetest.after(1, function()
-        if minetest.get_player_by_name(player:get_player_name()) then
-            apply_stats(player)
-            apply_toggles(player)
-        end
+    if not player then return end
+    -- Wait 2 seconds to ensure player is fully initialized
+    minetest.after(2, function()
+        pcall(function()
+            local name = player:get_player_name()
+            if not name then return end
+            
+            local player_obj = minetest.get_player_by_name(name)
+            if not player_obj then return end
+            
+            -- Double check player is still connected and valid
+            if player_obj:is_player() then
+                apply_stats(player_obj)
+                apply_toggles(player_obj)
+            end
+        end)
     end)
 end)
 

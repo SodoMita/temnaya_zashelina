@@ -64,10 +64,12 @@ minetest.register_entity("scary:mob", {
 
             -- Find the closest player within range
             for _, player in ipairs(players) do
-                local player_pos = player:get_pos()
-                if vector.distance(pos, player_pos) <= self.range then
-                    self.target_player = player
-                    break
+                if player and player:is_player() then
+                    local player_pos = player:get_pos()
+                    if player_pos and vector.distance(pos, player_pos) <= self.range then
+                        self.target_player = player
+                        break
+                    end
                 end
             end
         end
@@ -79,6 +81,8 @@ minetest.register_entity("scary:mob", {
 
         -- Get positions
         local pos = self.object:get_pos()
+        if not pos then return end
+        
         local target_pos = self.target_player:get_pos()
         if not target_pos then return end
         target_pos.y=target_pos.y+1
@@ -112,7 +116,12 @@ minetest.register_entity("scary:mob", {
         self.attack_timer = self.attack_timer + dtime
         if self.attack_timer >= self.attack_time and distance <= self.attack_distance then
             -- Attack the player
-            self.target_player:set_hp(self.target_player:get_hp() - self.damage)
+            if self.target_player:is_player() then
+                local hp = self.target_player:get_hp()
+                if hp then
+                    self.target_player:set_hp(hp - self.damage)
+                end
+            end
             self.attack_timer = 0
 
             -- Set attack animation
@@ -359,12 +368,12 @@ minetest.register_entity("scary:nerobot", {
         self.path_timer = self.path_timer + self.dtime
         if self.path_timer > mob_config.search_wait_time then
             self.path_timer = 0
-            if self.target_player then
-                local player_pos = self.target_player:get_pos()
-                if player_pos then
-                    self:update_path(player_pos)
+                if self.target_player and self.target_player:is_player() then
+                    local player_pos = self.target_player:get_pos()
+                    if player_pos then
+                        self:update_path(player_pos)
+                    end
                 end
-            end
         end
 
         -- Follow the current path
@@ -468,7 +477,8 @@ minetest.register_entity("scary:nerobot", {
         if not self.target_player or not self.target_player:is_player() then
             self.state = "idle"
         else
-            if self.target_player:get_pos():distance(pos) < mob_config.attack_range then
+            local player_pos = self.target_player:get_pos()
+            if player_pos and vector.distance(pos, player_pos) < mob_config.attack_range then
                 self.state = "attacking"
                 self.snd_timer = -1
             end
@@ -524,7 +534,7 @@ minetest.register_entity("scary:nerobot", {
             self.path_index = self.path_index + 1 -- Move to the next waypoint
             if not self.path[self.path_index] then
                 -- Reached the final waypoint, push into player
-                if self.target_player ~= nil then
+                if self.target_player and self.target_player:is_player() then
                     target_pos = self.target_player:get_pos()
                 end
                 -- Or start attacking
@@ -577,6 +587,10 @@ minetest.register_entity("scary:nerobot", {
     get_player_in_view = function(self, pos)
         local players = minetest.get_connected_players()
         for _, player in ipairs(players) do
+            if not player or not player:is_player() then
+                goto continue
+            end
+            
             local player_pos = player:get_pos()
             if not player_pos then
                 goto continue

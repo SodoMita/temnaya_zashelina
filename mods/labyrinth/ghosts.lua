@@ -73,17 +73,19 @@ minetest.register_entity("labyrinth:ghost", {
 	
 	slide_direction = {x = 0, y = 0, z = 0},
 	lifetime = 0,
-	max_lifetime = 3,  -- Total lifetime before despawn
-	slide_speed = 2,
+	max_lifetime = 4,  -- Total lifetime before despawn
+	slide_speed = 0.5,
 	total_distance = 0,
 	max_distance = 1,  -- Move only 1 node
 	trigger_pos = nil,  -- Store trigger position for replacement
 	wall_offset = nil,  -- Store wall offset for sign placement
 	bounce_start_time = nil,  -- When bounce animation starts
-	bounce_duration = 1.2,  -- Duration of bounce animation
+	bounce_duration = 1,  -- Duration of bounce animation
 	wait_duration = 0.3,  -- Wait time after bounce before despawn
+	despawn_delay = 0.1,  -- Extra delay after spawning sign before removing entity
 	initial_pos = nil,  -- Starting position for bounce
 	sign_spawned = false,  -- Track if sign has been spawned
+	sign_spawn_time = nil,  -- When sign was spawned
 	
 	on_activate = function(self, staticdata, dtime_s)
 		-- Play scary sound on spawn
@@ -141,7 +143,7 @@ minetest.register_entity("labyrinth:ghost", {
 			local total_duration = self.bounce_duration + self.wait_duration
 			
 			if bounce_elapsed >= total_duration then
-				-- Wait complete - spawn sign FIRST, then despawn entity (avoid 1-frame gap)
+				-- Wait complete - spawn sign first
 				if not self.sign_spawned and self.trigger_pos then
 					local node = minetest.get_node(self.trigger_pos)
 					if node.name == "labyrinth:ghost_trigger" then
@@ -156,14 +158,18 @@ minetest.register_entity("labyrinth:ghost", {
 						else
 							facedir = 1  -- -Z -> facedir 1
 						end
-						-- Place node BEFORE removing entity
+						-- Place node and record time
 						minetest.set_node(self.trigger_pos, {name = "labyrinth:ghost_sign", param2 = facedir})
 						self.sign_spawned = true
+						self.sign_spawn_time = self.lifetime
 					end
 				end
-				-- Now remove entity (sign is already in place)
-				self.object:remove()
-				return
+				
+				-- Wait for delay after sign spawn before removing entity
+				if self.sign_spawned and self.sign_spawn_time and (self.lifetime - self.sign_spawn_time) >= self.despawn_delay then
+					self.object:remove()
+					return
+				end
 			
 			elseif bounce_elapsed < self.bounce_duration then
 				-- Spring bounce animation with damped oscillation
@@ -246,9 +252,16 @@ minetest.register_globalstep(function(dtime)
 						local block_pos = vector.round(check_pos)
 						local trigger_key = minetest.pos_to_string(block_pos)
 						
-						-- Only trigger once
-						if not labyrinth.triggered_ghosts[trigger_key] then
-							labyrinth.triggered_ghosts[trigger_key] = true
+							-- Only trigger once
+							if not labyrinth.triggered_ghosts[trigger_key] then
+								labyrinth.triggered_ghosts[trigger_key] = true
+								
+								-- Award achievement progress
+								if achievement_progress then
+									achievement_progress(player, "first_ghost", 1)
+									achievement_progress(player, "ghost_hunter", 1)
+									achievement_progress(player, "ghost_veteran", 1)
+								end
 							
 							-- Get metadata for slide direction (default to random)
 							local meta = minetest.get_meta(check_pos)
