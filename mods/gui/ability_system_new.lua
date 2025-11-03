@@ -932,7 +932,7 @@ function get_ability_formspec_new(player)
         
         -- 3D Player Model Preview (square, static)
         "box[0.2,0.3;1.5,1.5;#1a1a1aff]",
-        "model[0.3,0.4;1.3,1.3;player_preview;character.b3d;" .. table.concat(player_textures, ",") .. ";0,170;false;false;0,0]",
+        "model[0.3,0.4;1.3,1.3;player_preview;character.b3d;" .. table.concat(player_textures, ",") .. ";0,170;false;true;0,0]",
         
         -- Header
         "box[0.2,2;13.6,0.6;#2a2a2aff]",
@@ -997,7 +997,7 @@ function get_ability_formspec_new(player)
     
     -- RIGHT SIDE: Ability Graph
     table.insert(formspec, "box[4.9,2.8;8.9,7.9;#0a0a0aff]")
-    table.insert(formspec, "label[5.2,3.1;🗺️ Ability Tree (Use scrollbars to pan)]")
+    table.insert(formspec, "label[5.2,3.1;🗺️ Ability Tree (Use D-pad to pan)]")
     
     -- Graph rendering area
     local graph_x = 5.1
@@ -1068,8 +1068,8 @@ function get_ability_formspec_new(player)
         local y = graph_y + offset_y + ability.graph_y * grid_spacing_y
         
         -- Only draw if visible in viewport
-        if x + node_size >= graph_x and x <= graph_x + graph_w and
-           y + node_size >= graph_y and y <= graph_y + graph_h then
+        if x + node_size >= graph_x + 0.7  and x <= graph_x + graph_w and
+           y + node_size >= graph_y + 0.7 and y <= graph_y + graph_h - 0.7 then
             
             local level = data.unlocked[ability.id] or 0
             local unlocked = level > 0
@@ -1113,15 +1113,10 @@ function get_ability_formspec_new(player)
     
     -- D-pad navigation controls (5-button cross layout)
     -- Position inside left side of map to avoid overlap
-    local dp_cx = graph_x + 1.3
-    local dp_cy = graph_y + graph_h / 2
+    local dp_cx = graph_x + 0.75
+    local dp_cy = 1
     local btn_size = 0.7
     local btn_gap = 0.8
-    
-    -- Background for D-pad (1.5x larger: 2.2 * 1.5 = 3.3)
-    local bg_size = 2.6
-    table.insert(formspec, string.format("box[%f,%f;%f,%f;#0a0a0a88]", 
-        dp_cx - bg_size, dp_cy - bg_size/2, bg_size, bg_size))
     
     -- D-pad buttons
     table.insert(formspec, string.format("button[%f,%f;%f,%f;nav_up;↑]", 
@@ -1134,9 +1129,6 @@ function get_ability_formspec_new(player)
         dp_cx + btn_gap, dp_cy, btn_size, btn_size))
     table.insert(formspec, string.format("button[%f,%f;%f,%f;nav_reset;⊚]", 
         dp_cx, dp_cy, btn_size, btn_size))
-    
-    -- Label below D-pad
-    table.insert(formspec, string.format("label[%f,%f;Pan View]", dp_cx - 0.2, dp_cy + 1.5))
     
     -- Tooltip area (click nodes to see info here)
     table.insert(formspec, "box[0.2,10.5;13.6,0.3;#2a2a2aff]")

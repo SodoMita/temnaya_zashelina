@@ -196,9 +196,33 @@ function player_api.globalstep()
 				animation_speed_mod = animation_speed_mod / 2
 			end
 
+			-- Determine if we should force a 1-node-high profile (crawl)
+			local force_crawl = false
+			-- Enable crawling while sneaking, or if there isn't enough headroom to stand
+			if controls.sneak then
+				force_crawl = true
+			else
+				local pos = player:get_pos()
+				if pos then
+					-- Check two nodes above the player's feet; if either is walkable, keep low profile
+					local p1 = {x = pos.x, y = math.floor(pos.y + 0.5) + 1, z = pos.z}
+					local p2 = {x = p1.x, y = p1.y + 1, z = p1.z}
+					local n1 = minetest.get_node(p1)
+					local n2 = minetest.get_node(p2)
+					local def1 = minetest.registered_nodes[n1.name] or {}
+					local def2 = minetest.registered_nodes[n2.name] or {}
+					if def1.walkable == true or def2.walkable == true then
+						force_crawl = true
+					end
+				end
+			end
+
 			-- Apply animations based on what the player is doing
 			if player:get_hp() == 0 then
 				player_set_animation(player, "lay")
+			elseif force_crawl then
+				-- Use the sit animation which sets a 1.0 high collisionbox to fit 1-node-high spaces
+				player_set_animation(player, "sit", animation_speed_mod)
 			elseif controls.up or controls.down or controls.left or controls.right then
 				if controls.LMB or controls.RMB then
 					player_set_animation(player, "walk_mine", animation_speed_mod)

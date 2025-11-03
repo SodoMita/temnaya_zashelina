@@ -67,6 +67,18 @@ local ground_level = 0    -- Height of the flat dirt
 local flower_density = 0.005 -- Probability of a flower per dirt node
 
 minetest.register_on_generated(function(minp, maxp, seed)
+    -- Skip generation in labyrinth and factory zones
+    if temz_zones then
+        local skip = false
+        temz_zones.for_each_zone_overlapping(minp, maxp, function(zx, zz, zone_min, zone_max)
+            local zone_type = temz_zones.get_zone_type(zx, zz)
+            if zone_type == "labyrinth" or zone_type == "factory" then
+                skip = true
+            end
+        end)
+        if skip then return end
+    end
+    
     -- Check if this chunk contains the ground level
     if minp.y > ground_level or maxp.y < ground_level then
         return

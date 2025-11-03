@@ -111,3 +111,16 @@ minetest.register_node('constructions:bw_blink2', {
 -- 	sounds = default.node_sound_stone_defaults(), // TODO: ceramic sound
 	sounds = color_snd,
 })
+
+minetest.register_node('constructions:transparent_beton', {
+	description = "Transparent Beton",
+	tiles = {"transparent_beton.png"},  -- Placeholder texture
+	drawtype = "glasslike",
+	paramtype = "light",
+	sunlight_propagates = true,
+	light_source = 10,  -- Emits light
+	use_texture_alpha = "blend",
+	is_ground_content = false,
+	groups = {cracky = 3},
+	sounds = default.node_sound_stone_defaults(),
+})

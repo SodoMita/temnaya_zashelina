@@ -3,13 +3,52 @@
 -- Track triggered ghost spawners to avoid repeats
 labyrinth.triggered_ghosts = {}
 
+-- Register invisible ghost trigger node (placed in walls)
+minetest.register_node("labyrinth:ghost_trigger", {
+	description = "Ghost Trigger (invisible)",
+	tiles = {"labyrinth_ghost_trigger.png"},  -- Invisible/debug texture
+	drawtype = "airlike",
+	paramtype = "light",
+	sunlight_propagates = true,
+	walkable = false,
+	pointable = false,
+	diggable = false,
+	is_ground_content = false,
+	groups = {not_in_creative_inventory = 1},
+})
+
+-- Register ghost sign node (replaces trigger after spawn)
+minetest.register_node("labyrinth:ghost_sign", {
+	description = "Ghost Sign",
+	tiles = {
+		"labyrinth_ghost_sign_back.png",  -- Back (where it came from)
+		"labyrinth_ghost_sign_front.png",  -- Front (where it moved to)
+	},
+	drawtype = "nodebox",
+	paramtype = "light",
+	paramtype2 = "facedir",
+	node_box = {
+		type = "fixed",
+		fixed = {-0.4, -0.5, -0.05, 0.4, 0.5, 0.05},
+	},
+	selection_box = {
+		type = "fixed",
+		fixed = {-0.4, -0.5, -0.05, 0.4, 0.5, 0.05},
+	},
+	groups = {cracky = 3, oddly_breakable_by_hand = 2},
+	is_ground_content = false,
+	sounds = default.node_sound_defaults(),
+	walkable = false,
+	glow = 3,
+})
+
 -- Register ghost entity
 minetest.register_entity("labyrinth:ghost", {
 	initial_properties = {
 		physical = false,
 		collide_with_objects = false,
 		collisionbox = {-0.3, -0.3, -0.3, 0.3, 0.3, 0.3},
-		visual = "sprite",
+		visual = "upright_sprite",
 		textures = {"scary_mob_texture.png"},
 		visual_size = {x = 1, y = 1},
 		glow = 5,
@@ -20,6 +59,9 @@ minetest.register_entity("labyrinth:ghost", {
 	lifetime = 0,
 	max_lifetime = 3,  -- Despawn after 3 seconds
 	slide_speed = 2,
+	total_distance = 0,
+	max_distance = 1,  -- Move only 1 node
+	trigger_pos = nil,  -- Store trigger position for replacement
 	
 	on_activate = function(self, staticdata, dtime_s)
 		-- Play scary sound on spawn
@@ -42,15 +84,43 @@ minetest.register_entity("labyrinth:ghost", {
 		
 		-- Despawn after max lifetime
 		if self.lifetime >= self.max_lifetime then
+			-- Replace trigger with ghost sign before despawning
+			if self.trigger_pos then
+				local node = minetest.get_node(self.trigger_pos)
+				if node.name == "labyrinth:ghost_trigger" then
+					-- Calculate facedir from slide direction
+					local facedir = 0
+					if self.slide_direction.x > 0.5 then
+						facedir = 3  -- +X
+					elseif self.slide_direction.x < -0.5 then
+						facedir = 1  -- -X
+					elseif self.slide_direction.z > 0.5 then
+						facedir = 2  -- +Z
+					else
+						facedir = 0  -- -Z
+					end
+					minetest.set_node(self.trigger_pos, {name = "labyrinth:ghost_sign", param2 = facedir})
+				end
+			end
 			self.object:remove()
 			return
 		end
 		
-		-- Slide in the specified direction
+		-- Slide in the specified direction (but limit to 1 node)
 		local pos = self.object:get_pos()
 		if pos and self.slide_direction then
-			local new_pos = vector.add(pos, vector.multiply(self.slide_direction, self.slide_speed * dtime))
-			self.object:set_pos(new_pos)
+			local move_dist = self.slide_speed * dtime
+			
+			-- Check if we've moved far enough
+			if self.total_distance + move_dist > self.max_distance then
+				move_dist = self.max_distance - self.total_distance
+			end
+			
+			if move_dist > 0 then
+				local new_pos = vector.add(pos, vector.multiply(self.slide_direction, move_dist))
+				self.object:set_pos(new_pos)
+				self.total_distance = self.total_distance + move_dist
+			end
 		end
 	end,
 })
@@ -91,24 +161,73 @@ minetest.register_globalstep(function(dtime)
 							local dir_str = meta:get_string("slide_direction")
 							local slide_dir
 							
+							local debug_nodes = {}
+							local wall_offset = nil
+							
 							if dir_str and dir_str ~= "" then
 								slide_dir = minetest.deserialize(dir_str)
 							else
-								-- Random direction if not specified
-								local angle = math.random() * math.pi * 2
-								slide_dir = {x = math.cos(angle), y = 0, z = math.sin(angle)}
+								-- Determine direction from adjacent wall
+								-- Round to block position first!
+								local block_pos = vector.round(check_pos)
+								for _, offset in ipairs({{1,0,0},{-1,0,0},{0,0,1},{0,0,-1}}) do
+									local check_wall = vector.add(block_pos, {x=offset[1], y=offset[2], z=offset[3]})
+									local wall_node = minetest.get_node(check_wall)
+									table.insert(debug_nodes, wall_node.name)
+									if wall_node.name == "constructions:transparent_beton" then
+										wall_offset = {x=offset[1], y=offset[2], z=offset[3]}
+										break
+									end
+								end
+								
+								if wall_offset then
+									-- Slide direction is opposite of wall offset (out from wall)
+									slide_dir = {x = -wall_offset.x, y = 0, z = -wall_offset.z}
+								else
+									-- Fallback random direction
+									local angle = math.random() * math.pi * 2
+									slide_dir = {x = math.cos(angle), y = 0, z = math.sin(angle)}
+									wall_offset = {x = -slide_dir.x, y = 0, z = -slide_dir.z}
+								end
 							end
 							
-							-- Spawn ghost slightly inside the wall
-							local spawn_pos = vector.add(check_pos, vector.multiply(slide_dir, -0.5))
+							-- Safety check: make sure wall_offset exists
+							if not wall_offset then
+								local block_pos = vector.round(check_pos)
+								minetest.log("warning", "[labyrinth] Ghost trigger at " .. minetest.pos_to_string(check_pos) .. 
+									" (block: " .. minetest.pos_to_string(block_pos) .. ")" ..
+									" has no wall_offset! Adjacent nodes: " .. table.concat(debug_nodes, ", "))
+								goto skip_ghost
+							end
+							
+							-- Spawn ghost INSIDE the wall (1.5 blocks into wall)
+							-- Use block_pos for spawning too
+							local block_pos = vector.round(check_pos)
+							local spawn_pos = vector.add(block_pos, vector.multiply(wall_offset, 1.5))
 							local ghost = minetest.add_entity(spawn_pos, "labyrinth:ghost")
 							
 							if ghost then
 								local lua_ent = ghost:get_luaentity()
 								if lua_ent then
 									lua_ent.slide_direction = slide_dir
+									lua_ent.trigger_pos = block_pos
+									
+									-- Set ghost rotation based on slide direction
+									local yaw = 0
+									if slide_dir.x > 0.5 then
+										yaw = math.pi / 2  -- +X (east)
+									elseif slide_dir.x < -0.5 then
+										yaw = -math.pi / 2  -- -X (west)
+									elseif slide_dir.z > 0.5 then
+										yaw = 0  -- +Z (south)
+									else
+										yaw = math.pi  -- -Z (north)
+									end
+									ghost:set_yaw(yaw)
 								end
 							end
+							
+							::skip_ghost::
 						end
 					end
 				end

@@ -70,10 +70,20 @@ minetest.register_on_generated(function(minp, maxp, blockseed)
 	local param2_data = vm:get_param2_data()
 	local deferred = {}
 	
+	-- Check if ANY overlapping zone disables floor generation
+	local skip_floor = false
+	temz_zones.for_each_zone_overlapping(minp, maxp, function(zx, zz, zone_min, zone_max)
+		local zone_type = temz_zones.get_zone_type(zx, zz)
+		if zone_type == "labyrinth" or zone_type == "factory" then
+			skip_floor = true
+		end
+	end)
+	
 	temz_zones.for_each_zone_overlapping(minp, maxp, function(zx, zz, zone_min, zone_max)
 		local zone_type = temz_zones.get_zone_type(zx, zz)
 		
-		if generate_floor then
+		-- Only generate floor if no special zones in this chunk
+		if generate_floor and not skip_floor then
 			generate_universal_floor(vm, data, area, minp, maxp, zone_type)
 		end
 		
@@ -108,6 +118,23 @@ minetest.register_on_generated(function(minp, maxp, blockseed)
 		
 		pcall(generator.generate, ctx)
 	end)
+	
+	-- Check if any zone in this chunk disables decorations
+	local has_no_decorations = false
+	temz_zones.for_each_zone_overlapping(minp, maxp, function(zx, zz, zone_min, zone_max)
+		local zone_type = temz_zones.get_zone_type(zx, zz)
+		if zone_type == "labyrinth" or zone_type == "factory" then
+			has_no_decorations = true
+		end
+	end)
+	
+	-- Only generate decorations/ores if not in special zones (BEFORE setting data!)
+	if not has_no_decorations then
+		minetest.generate_decorations(vm, minp, maxp)
+		minetest.generate_ores(vm, minp, maxp)
+	else
+		minetest.log("action", "[dumbgen2] Skipping decorations for special zone at " .. minetest.pos_to_string(minp))
+	end
 	
 	vm:set_data(data)
 	vm:set_param2_data(param2_data)
