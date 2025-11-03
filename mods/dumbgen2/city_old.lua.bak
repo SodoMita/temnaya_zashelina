@@ -1,0 +1,223 @@
+-- City generation: streets, plots, buildings using hash-based procedural generation
+-- Inspired by labyrinth generation, adapted for urban sprawl
+
+local city = {}
+
+-- Content IDs (lazy loaded)
+local c_air, c_ground, c_asphalt, c_sidewalk, c_lamp
+local c_beton, c_bricks, c_glass, c_roof_concrete, c_roof_gravel
+local c_tree
+
+local function init_content_ids()
+	if c_air then return end
+	c_air = minetest.get_content_id("air")
+	c_ground = minetest.get_content_id("uliza:ground")
+	c_asphalt = minetest.get_content_id("uliza:asphalt")
+	c_sidewalk = minetest.get_content_id("uliza:sidewalk")
+	c_lamp = minetest.get_content_id("uliza:street_lamp")
+	c_beton = minetest.get_content_id("constructions:beton")
+	c_bricks = minetest.get_content_id("constructions:white_bricks2")
+	c_glass = minetest.get_content_id("uliza:framed_glass")
+	c_roof_concrete = minetest.get_content_id("uliza:roof_slab_concrete")
+	c_roof_gravel = minetest.get_content_id("uliza:roof_slab_gravel")
+	c_tree = minetest.get_content_id("uliza:tree1")
+end
+
+-- City layout constants (USSR microdistrict style)
+local BLOCK_SIZE = 60          -- Size of microdistrict block
+local PATH_WIDTH = 4           -- Width of pedestrian paths (most common)
+local ROAD_WIDTH = 8           -- Width of asphalt roads (rare, for cars)
+local BUILDING_WIDTH = 12      -- Standard panel building width
+local BUILDING_DEPTH = 40      -- Standard panel building length
+local BUILDING_HEIGHT = 36     -- 9 floors × 4 nodes per floor
+local FLOOR_HEIGHT = 4         -- Height of each floor
+local LAMP_SPACING = 16        -- Distance between street lamps
+
+-- Hash function for deterministic values
+local function hash_pos(x, z, seed)
+	local h = seed
+	h = (h + x * 374761393) % 2147483647
+	h = (h + z * 668265263) % 2147483647
+	h = (h * 1664525 + 1013904223) % 2147483647
+	return h
+end
+
+-- Check if this block should have asphalt road (rare)
+local function has_asphalt_road(block_x, block_z, direction, seed)
+	local h = hash_pos(block_x * 3 + direction, block_z * 5, seed + 11111)
+	return (h % 100) < 20  -- 20% are asphalt roads, 80% are pedestrian paths
+end
+
+-- Check if block should be recreation zone with playground
+local function is_recreation(block_x, block_z, seed)
+	local h = hash_pos(block_x * 7, block_z * 11, seed + 55555)
+	return (h % 100) < 25  -- 25% of blocks are recreation zones
+end
+
+-- Get building orientation (0=N-S, 1=E-W)
+local function get_building_orientation(block_x, block_z, seed)
+	local h = hash_pos(block_x, block_z, seed + 22222)
+	return h % 2
+end
+
+-- Main city generation function
+function city.generate(ctx)
+	init_content_ids()
+	
+	local zone_seed = ctx.zx * 374761393 + ctx.zz * 668265263
+	local ground_y = 0
+	
+	-- First pass: Fill underground with stone, clear above ground
+	local c_stone = minetest.get_content_id("default:stone")
+	for y = -20, 50 do
+		if y >= ctx.sub_minp.y and y <= ctx.sub_maxp.y then
+			for z = ctx.sub_minp.z, ctx.sub_maxp.z do
+				for x = ctx.sub_minp.x, ctx.sub_maxp.x do
+					local vi = ctx.area:index(x, y, z)
+					if y < 0 then
+						ctx.data[vi] = c_stone
+					else
+						ctx.data[vi] = c_air
+					end
+				end
+			end
+		end
+	end
+	
+	-- Second pass: Generate USSR microdistrict with proper panel buildings
+	for z = ctx.sub_minp.z, ctx.sub_maxp.z do
+		for x = ctx.sub_minp.x, ctx.sub_maxp.x do
+			local rel_x = x - ctx.zone_minp.x
+			local rel_z = z - ctx.zone_minp.z
+			local block_x = math.floor(rel_x / BLOCK_SIZE)
+			local block_z = math.floor(rel_z / BLOCK_SIZE)
+			local in_block_x = rel_x % BLOCK_SIZE
+			local in_block_z = rel_z % BLOCK_SIZE
+			
+			-- Ground level
+			local vi_ground = ctx.area:index(x, ground_y, z)
+			ctx.data[vi_ground] = c_ground
+			
+			-- Determine if in path/road
+			local path_x = (in_block_x < PATH_WIDTH)
+			local path_z = (in_block_z < BLOCK_SIZE and in_block_z >= BLOCK_SIZE - PATH_WIDTH)
+			local is_road_x = has_asphalt_road(block_x, block_z, 0, zone_seed)
+			local is_road_z = has_asphalt_road(block_x, block_z, 1, zone_seed)
+			
+			if path_x or path_z then
+				-- Path or road
+				for y = 1, 1 do
+					if y >= ctx.sub_minp.y and y <= ctx.sub_maxp.y then
+						local vi = ctx.area:index(x, y, z)
+						if (path_x and is_road_x) or (path_z and is_road_z) then
+							ctx.data[vi] = c_asphalt  -- Rare asphalt road
+						else
+							ctx.data[vi] = c_sidewalk  -- Common pedestrian path
+						end
+					end
+				end
+				
+				-- Lamps along paths
+				if (rel_x % LAMP_SPACING == 0 or rel_z % LAMP_SPACING == 0) and (in_block_x == 1 or in_block_z == BLOCK_SIZE - 2) then
+					for y = 2, 5 do
+						if y >= ctx.sub_minp.y and y <= ctx.sub_maxp.y then
+							local vi = ctx.area:index(x, y, z)
+							ctx.data[vi] = (y == 5) and c_lamp or c_beton
+						end
+					end
+				end
+			else
+				-- Building/recreation zone
+				local zone_x = in_block_x - PATH_WIDTH
+				local zone_z = in_block_z
+				
+				if is_recreation(block_x, block_z, zone_seed) then
+					-- Recreation zone: playground, benches, trees
+					local tree_hash = hash_pos(x, z, zone_seed + 7777)
+					if (tree_hash % 100) < 8 then
+						-- Tree
+						if 2 >= ctx.sub_minp.y and 2 <= ctx.sub_maxp.y then
+							local vi = ctx.area:index(x, 2, z)
+							ctx.data[vi] = c_tree
+						end
+					elseif (tree_hash % 100) < 12 then
+						-- Simple playground element (bricks stacked)
+						for y = 1, 2 do
+							if y >= ctx.sub_minp.y and y <= ctx.sub_maxp.y then
+								local vi = ctx.area:index(x, y, z)
+								ctx.data[vi] = c_bricks
+							end
+						end
+					end
+				else
+					-- USSR panel building (9 stories, proper walls and floors)
+					local orientation = get_building_orientation(block_x, block_z, zone_seed)
+					local bldg_w, bldg_d = BUILDING_WIDTH, BUILDING_DEPTH
+					if orientation == 1 then
+						bldg_w, bldg_d = bldg_d, bldg_w  -- Rotate 90 degrees
+					end
+					
+					-- Center building in zone
+					local zone_size = BLOCK_SIZE - PATH_WIDTH
+					local bldg_start_x = math.floor((zone_size - bldg_w) / 2)
+					local bldg_start_z = math.floor((zone_size - bldg_d) / 2)
+					
+					if zone_x >= bldg_start_x and zone_x < bldg_start_x + bldg_w and
+					   zone_z >= bldg_start_z and zone_z < bldg_start_z + bldg_d then
+						
+						-- Inside building footprint
+						local bx = zone_x - bldg_start_x
+						local bz = zone_z - bldg_start_z
+						local wall_material = ((block_x + block_z) % 2 == 0) and c_beton or c_bricks
+						
+						-- 4 walls: check if on edge
+						local on_edge = (bx == 0 or bx == bldg_w - 1 or bz == 0 or bz == bldg_d - 1)
+						
+						-- Generate building vertically with floors
+						for y = 1, BUILDING_HEIGHT do
+							if y >= ctx.sub_minp.y and y <= ctx.sub_maxp.y then
+								local vi = ctx.area:index(x, y, z)
+								local floor_num = math.floor((y - 1) / FLOOR_HEIGHT)
+								local in_floor_y = (y - 1) % FLOOR_HEIGHT
+								
+								if y == BUILDING_HEIGHT then
+									-- Flat roof
+									ctx.data[vi] = c_roof_concrete
+								elseif in_floor_y == 0 then
+									-- Floor slab
+									ctx.data[vi] = c_roof_concrete
+								elseif on_edge then
+									-- Exterior wall
+									local window_row = (in_floor_y == 2)  -- Windows at height 2 in each floor
+									local window_col = ((bx % 4 == 1 and bz > 0 and bz < bldg_d - 1) or 
+									                    (bz % 4 == 1 and bx > 0 and bx < bldg_w - 1))
+									if window_row and window_col then
+										ctx.data[vi] = c_glass  -- Window
+									else
+										ctx.data[vi] = wall_material  -- Wall
+									end
+								else
+									-- Interior space (air)
+									ctx.data[vi] = c_air
+								end
+							end
+						end
+					end
+				end
+			end
+		end
+	end
+	
+	minetest.log("action", "[dumbgen2:city] Generated city zone (" .. ctx.zx .. ", " .. ctx.zz .. ")")
+end
+
+-- Register generator
+if temz_zones and temz_zones.register_generator then
+	temz_zones.register_generator("city", {
+		y_min = -20,
+		y_max = 50,
+		generate = city.generate,
+	})
+end
+
+return city

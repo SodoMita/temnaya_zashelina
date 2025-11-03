@@ -249,3 +249,93 @@ minetest.register_node("uliza:tree1", {
 	use_texture_alpha = false,
 	sounds = default.node_sound_wood_defaults(),
 })
+
+-- City nodes for generation
+minetest.register_node("uliza:asphalt", {
+	description = "Asphalt Road",
+	tiles = {"ground.png^[colorize:#1a1a1a:180"},
+	is_ground_content = false,
+	groups = {cracky = 3, stone = 1},
+	sounds = default.node_sound_stone_defaults(),
+})
+
+minetest.register_node("uliza:sidewalk", {
+	description = "Concrete Sidewalk",
+	tiles = {"ground.png^[colorize:#808080:120"},
+	is_ground_content = false,
+	groups = {cracky = 2, stone = 1},
+	sounds = default.node_sound_stone_defaults(),
+})
+
+minetest.register_node("uliza:street_lamp", {
+	description = "Street Lamp",
+	tiles = {"ground.png^[colorize:#ffff00:100"},
+	paramtype = "light",
+	light_source = 14,
+	is_ground_content = false,
+	groups = {cracky = 2, oddly_breakable_by_hand = 3},
+	sounds = default.node_sound_glass_defaults(),
+})
+
+minetest.register_node("uliza:concrete", {
+	description = "Concrete Block",
+	tiles = {"ground.png^[colorize:#606060:150"},
+	is_ground_content = false,
+	groups = {cracky = 1, stone = 1},
+	sounds = default.node_sound_stone_defaults(),
+})
+
+minetest.register_node("uliza:brick_red", {
+	description = "Red Brick",
+	tiles = {"ground.png^[colorize:#8B4513:160"},
+	is_ground_content = false,
+	groups = {cracky = 2, stone = 1},
+	sounds = default.node_sound_stone_defaults(),
+})
+
+minetest.register_node("uliza:plaster_white", {
+	description = "White Plaster",
+	tiles = {"ground.png^[colorize:#f0f0f0:100"},
+	is_ground_content = false,
+	groups = {cracky = 2, stone = 1},
+	sounds = default.node_sound_stone_defaults(),
+})
+
+minetest.register_node("uliza:roof_tile", {
+	description = "Roof Tiles",
+	tiles = {"ground.png^[colorize:#654321:180"},
+	is_ground_content = false,
+	groups = {cracky = 2, stone = 1},
+	sounds = default.node_sound_stone_defaults(),
+})
+
+-- Thin roof slabs for flat roofs
+minetest.register_node("uliza:roof_slab_concrete", {
+	description = "Concrete Roof Slab",
+	tiles = {"ground.png^[colorize:#606060:150"},
+	drawtype = "nodebox",
+	paramtype = "light",
+	paramtype2 = "facedir",
+	node_box = {
+		type = "fixed",
+		fixed = {-0.5, -0.5, -0.5, 0.5, -0.375, 0.5},
+	},
+	is_ground_content = false,
+	groups = {cracky = 1, stone = 1},
+	sounds = default.node_sound_stone_defaults(),
+})
+
+minetest.register_node("uliza:roof_slab_gravel", {
+	description = "Gravel Roof Slab",
+	tiles = {"ground.png^[colorize:#3a3a3a:120"},
+	drawtype = "nodebox",
+	paramtype = "light",
+	paramtype2 = "facedir",
+	node_box = {
+		type = "fixed",
+		fixed = {-0.5, -0.5, -0.5, 0.5, -0.375, 0.5},
+	},
+	is_ground_content = false,
+	groups = {crumbly = 2},
+	sounds = default.node_sound_gravel_defaults(),
+})
