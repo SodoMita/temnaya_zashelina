@@ -1088,25 +1088,29 @@ function get_ability_formspec_new(player)
     local grid_spacing_x = 2.0
     local grid_spacing_y = 1.8
     
-    -- Calculate total graph size
+    -- Calculate total graph size (including negative coordinates)
+    local min_x = 0
     local max_x = 0
+    local min_y = 0
     local max_y = 0
     for _, ability in ipairs(abilities) do
+        min_x = math.min(min_x, ability.graph_x)
         max_x = math.max(max_x, ability.graph_x)
+        min_y = math.min(min_y, ability.graph_y)
         max_y = math.max(max_y, ability.graph_y)
     end
-    local total_width = (max_x + 1) * grid_spacing_x + node_size
-    local total_height = (max_y + 1) * grid_spacing_y + node_size
+    local total_width = (max_x - min_x + 1) * grid_spacing_x + node_size
+    local total_height = (max_y - min_y + 1) * grid_spacing_y + node_size
     
     -- Get current scroll offsets (0-1000 range from scrollbar)
     local scroll_x = tonumber(data.scroll_x) or 0
     local scroll_y = tonumber(data.scroll_y) or 0
     
-    -- Convert to pixel offsets
+    -- Convert to pixel offsets (accounting for negative coordinates)
     local max_offset_x = math.max(0, total_width - graph_w)
     local max_offset_y = math.max(0, total_height - graph_h)
-    local offset_x = -(scroll_x / 1000) * max_offset_x
-    local offset_y = -(scroll_y / 1000) * max_offset_y
+    local offset_x = -(scroll_x / 1000) * max_offset_x - (min_x * grid_spacing_x)
+    local offset_y = -(scroll_y / 1000) * max_offset_y - (min_y * grid_spacing_y)
     
     -- Clip box for graph area
     table.insert(formspec, string.format("box[%f,%f;%f,%f;#0a0a2aff]", graph_x, graph_y, graph_w, graph_h))
