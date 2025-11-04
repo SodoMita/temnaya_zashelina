@@ -1,0 +1,20 @@
+/* XPM */
+static char *autumn_leaves_8x8_gray[] = {
+/* width height num_colors chars_per_pixel */
+"8 8 5 1",
+/* colors */
+". c None",
+"L c #EAEAEA",
+"M c #BEBEBE",
+"D c #7A7A7A",
+"K c #515151",
+/* pixels */
+"........",
+"..L..L..",
+".LMDLMD.",
+".LD..DK.",
+"..K.LL..",
+"....LMD.",
+".....DK.",
+"........"
+};

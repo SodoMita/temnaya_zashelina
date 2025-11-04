@@ -91,7 +91,7 @@ minetest.register_entity("labyrinth:ghost", {
 		-- Play scary sound on spawn
 		local pos = self.object:get_pos()
 		if pos then
-			minetest.sound_play("boo", {pos = pos, gain = 1.0, max_hear_distance = 15})
+			minetest.sound_play("boo", {pos = pos, gain = 0.25, max_hear_distance = 15})
 		end
 		
 		-- Parse slide direction from staticdata if provided

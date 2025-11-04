@@ -45,6 +45,10 @@ minetest.register_entity("scary:mob", {
     digging_animation_playing = true, -- Whether the dig animation is playing
     dragging = false,
     anim_mul = 1,
+    was_dragging = false, -- internal flag to restore camera after drag
+    -- Steering avoidance config
+    avoid_radius = 1.8,      -- scan radius for nearby entities
+    avoid_weight = 1.8,      -- how strongly to steer away
 
     -- Function called when the mob is activated
     on_activate = function(self, staticdata, dtime_s)
@@ -89,6 +93,37 @@ minetest.register_entity("scary:mob", {
 
         -- Calculate direction toward the player
         local dir = vector.normalize(vector.subtract(target_pos, pos))
+
+        -- Simple steering to avoid other entities
+        local move_dir = dir
+        do
+            local avoid_vec = {x = 0, y = 0, z = 0}
+            local objs = minetest.get_objects_inside_radius(pos, self.avoid_radius) or {}
+            for _, obj in ipairs(objs) do
+                if obj ~= self.object then
+                    -- Skip the target player; avoid everything else (players and entities)
+                    if not (self.target_player and obj == self.target_player) then
+                        local o_pos = obj:get_pos()
+                        if o_pos then
+                            local away = vector.subtract(pos, o_pos)
+                            local dist = vector.length(away)
+                            if dist and dist > 0 then
+                                local norm_away = vector.divide(away, dist)
+                                -- Stronger repulsion when closer (linear falloff)
+                                local strength = math.max(0, (self.avoid_radius - dist) / self.avoid_radius)
+                                avoid_vec = vector.add(avoid_vec, vector.multiply(norm_away, strength))
+                            end
+                        end
+                    end
+                end
+            end
+            if avoid_vec.x ~= 0 or avoid_vec.y ~= 0 or avoid_vec.z ~= 0 then
+                local steered = vector.add(dir, vector.multiply(avoid_vec, self.avoid_weight))
+                if steered.x ~= 0 or steered.y ~= 0 or steered.z ~= 0 then
+                    move_dir = vector.normalize(steered)
+                end
+            end
+        end
 
         -- Check if the mob is inside a diggable node
         local node = minetest.get_node(pos)
@@ -148,13 +183,47 @@ minetest.register_entity("scary:mob", {
             direction = direction * self.player_move_speed * math.random() * (self.drag_timer/self.drag_time)
 
             self.target_player:add_velocity(direction)
+
+            -- Push player's camera toward the mob and force look at the mob while dragging
+            do
+                local player = self.target_player
+                if player and player:is_player() then
+                    -- Compute look direction to the mob from player's eye position
+                    local ppos = player:get_pos()
+                    if ppos then
+                        local eye_pos = {x = ppos.x, y = ppos.y + 1.4, z = ppos.z}
+                        local to_mob = vector.direction(eye_pos, pos)
+                        if to_mob and (to_mob.x ~= 0 or to_mob.y ~= 0 or to_mob.z ~= 0) then
+                            -- Horizontal look (yaw)
+                            local yaw = minetest.dir_to_yaw({x = to_mob.x, y = 0, z = to_mob.z})
+                            if yaw then player:set_look_horizontal(yaw) end
+                            -- Vertical look (pitch): negative to look upward, positive to look downward
+                            local horiz_len = math.sqrt(to_mob.x * to_mob.x + to_mob.z * to_mob.z)
+                            local pitch = -math.atan2(to_mob.y, horiz_len)
+                            if pitch then player:set_look_vertical(pitch) end
+                            -- Eye offset forward to "push" camera toward the mob
+                            -- Use a small, clamped forward push so it feels like a pull-in
+                            local push_strength = 2 -- nodes forward in view direction
+                            player:set_eye_offset({x = 0, y = 0, z = -push_strength}, {x = 0, y = 0, z = -push_strength})
+                            self.was_dragging = true
+                        end
+                    end
+                end
+            end
+
             self.drag_timer = self.drag_timer - dtime
+        else
+            -- Restore camera when drag ends
+            if self.was_dragging and self.target_player and self.target_player:is_player() then
+                self.target_player:set_eye_offset({x = 0, y = 0, z = 0}, {x = 0, y = 0, z = 0})
+            end
+            self.was_dragging = false
         end
 
-        -- Move the mob toward the player
-        local new_pos = vector.add(pos, vector.multiply(dir, current_speed * dtime))
+        -- Move the mob toward the player, steering around other entities
+        local new_pos = vector.add(pos, vector.multiply(move_dir, current_speed * dtime))
         self.object:set_pos(new_pos)
-        self.object:set_rotation(vector.dir_to_rotation(dir))
+        self.object:set_rotation(vector.dir_to_rotation(move_dir))
 
     end,
 })

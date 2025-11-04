@@ -250,6 +250,31 @@ minetest.register_node("uliza:tree1", {
 	sounds = default.node_sound_wood_defaults(),
 })
 
+local bench_box =  {
+        type = "fixed",
+        fixed = {
+			{-0.5, 0.06, -1.5, 0.5, 0, 1.5},
+			{-0.375, 0, -1.5, -0.5, 1.15, 1.5},
+		},
+}
+
+minetest.register_node("uliza:bench1", {
+	description = "Park Bench",
+	physical = true,
+	is_ground_content = false,
+	groups = {choppy = 2, flammable = 2},
+	selection_box = bench_box,
+	collision_box = bench_box,
+	node_box = bench_box,
+	drawtype = "mesh",
+	paramtype = 'light',
+	paramtype2 = 'facedir',
+	visual = "mesh",
+	mesh = "bench1.obj",
+	tiles = {"bench1.png"},
+	use_texture_alpha = false,
+	sounds = default.node_sound_wood_defaults(),
+})
 -- City nodes for generation
 minetest.register_node("uliza:asphalt", {
 	description = "Asphalt Road",
@@ -338,4 +363,57 @@ minetest.register_node("uliza:roof_slab_gravel", {
 	is_ground_content = false,
 	groups = {crumbly = 2},
 	sounds = default.node_sound_gravel_defaults(),
+})
+
+-- Flat overlay quads (slightly above ground)
+local leaf_overlay_box = {
+		type = "fixed",
+		fixed = {
+			{-0.5, -0.49, -0.5, 0.5, -0.48, 0.5},
+		},
+}
+
+minetest.register_node("uliza:ground_leaves", {
+	description = "Ground Leaves",
+	drawtype = "nodebox",
+	tiles = {"ground_leaves.png"},
+	use_texture_alpha = "blend",
+	paramtype = "light",
+	sunlight_propagates = true,
+	is_ground_content = false,
+	walkable = false,
+	groups = {snappy = 3, oddly_breakable_by_hand = 3, attached_node = 1},
+	node_box = leaf_overlay_box,
+	selection_box = leaf_overlay_box,
+	sounds = default.node_sound_leaves_defaults(),
+})
+
+minetest.register_node("uliza:ground_leaves2", {
+	description = "Ground Leaves 2",
+	drawtype = "nodebox",
+	tiles = {"ground_leaves2.png"},
+	use_texture_alpha = "blend",
+	paramtype = "light",
+	sunlight_propagates = true,
+	is_ground_content = false,
+	walkable = false,
+	groups = {snappy = 3, oddly_breakable_by_hand = 3, attached_node = 1},
+	node_box = leaf_overlay_box,
+	selection_box = leaf_overlay_box,
+	sounds = default.node_sound_leaves_defaults(),
+})
+
+minetest.register_node("uliza:ground_leaves2_0", {
+	description = "Ground Leaves 2_0",
+	drawtype = "nodebox",
+	tiles = {"ground_leaves2_0.png"},
+	use_texture_alpha = "blend",
+	paramtype = "light",
+	sunlight_propagates = true,
+	is_ground_content = false,
+	walkable = false,
+	groups = {snappy = 3, oddly_breakable_by_hand = 3, attached_node = 1},
+	node_box = leaf_overlay_box,
+	selection_box = leaf_overlay_box,
+	sounds = default.node_sound_leaves_defaults(),
 })
