@@ -1113,7 +1113,7 @@ function get_ability_formspec_new(player)
     local offset_y = -(scroll_y / 1000) * max_offset_y - (min_y * grid_spacing_y)
     
     -- Clip box for graph area
-    table.insert(formspec, string.format("box[%f,%f;%f,%f;#0a0a2aff]", graph_x, graph_y, graph_w, graph_h))
+    table.insert(formspec, string.format("box[%f,%f;%f,%f;#000000ff]", graph_x-0.2, graph_y-0.2, graph_w+0.2, graph_h+0.2))
     
     -- Draw edges first (so nodes are on top)
     for _, ability in ipairs(abilities) do
@@ -1138,7 +1138,7 @@ function get_ability_formspec_new(player)
                         local x = x1 + (x2 - x1) * t
                         local y = y1 + (y2 - y1) * t
                         
-                        local color = (unlocked and parent_unlocked) and "#4a9a4aff" or "#3a3a3aff"
+                        local color = (unlocked and parent_unlocked) and "#9a9a9aff" or "#4a4a4aff"
                         table.insert(formspec, string.format("box[%f,%f;0.05,0.05;%s]", x, y, color))
                     end
                 end

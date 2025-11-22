@@ -1,7 +1,7 @@
 minetest.override_item("", {
-	wield_scale = {x=1,y=1,z=2.5},
+	wield_scale = {x=1,y=1,z=1},
 	tool_capabilities = {
-		full_punch_interval = 0.9,
+		full_punch_interval = 0.1,
 		max_drop_level = 0,
 		groupcaps = {
 			crumbly = {times={[2]=3.00, [3]=0.70}, uses=0, maxlevel=1},

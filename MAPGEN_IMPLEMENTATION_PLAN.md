@@ -305,7 +305,13 @@
 - Mod scaffolding ✅
 - Debug commands ✅
 
+**Completed Today** (Session 2):
+- Labyrinth maze generation ✅ (hash-based rooms, corridors, doors)
+- Factory multi-floor generation ✅ (13 floors, shafts, pipes, tiered doors)
+- Ghost trigger placement in labyrinth ✅
+
 **Next Session Goals**:
-- Implement labyrinth maze generation
-- Test navigability and performance
-- Add basic ghost trigger placement
+- Test labyrinth and factory generation in-game
+- Debug any generation issues
+- Implement city/sewer generation (optional)
+- Add chest placement with key fragments
