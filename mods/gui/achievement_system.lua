@@ -188,13 +188,12 @@ local function show_achievement_popup(player, achievement)
     })
     
     local popup_icon = player:hud_add({
-        hud_elem_type = "text",
+        hud_elem_type = "image",
         position = {x = 0.5, y = 0.18},
         offset = {x = 0, y = 0},
         text = achievement.icon,
-        number = tier.title_color,
         alignment = {x = 0, y = 0},
-        scale = {x = 200, y = 200},
+        scale = {x = 2, y = 2},
         z_index = 1001,
     })
     
@@ -551,7 +550,7 @@ function get_achievement_formspec(player)
                 table.insert(formspec, string.format("box[0,%f;11,1.2;%s]", y, color))
                 
                 -- Icon
-                table.insert(formspec, string.format("label[0.2,%f;%s]", y + 0.5, achievement.icon))
+                table.insert(formspec, string.format("image[0.1,%f;1,1;%s]", y + 0.1, achievement.icon))
                 
                 -- Name and description
                 local display_name = achievement.name
