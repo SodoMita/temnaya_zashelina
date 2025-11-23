@@ -7,6 +7,7 @@ local abilities = {
         id = "speed_1",
         name = "Quick Steps I",
         description = "Increase movement speed by 20%",
+        icon = "ability_speed.png",
         category = "movement",
         cost = 1,
         max_level = 3,
@@ -21,6 +22,7 @@ local abilities = {
         id = "jump_1",
         name = "High Jump I",
         description = "Increase jump height by 30%",
+        icon = "ability_jump.png",
         category = "movement",
         cost = 1,
         max_level = 3,
@@ -35,6 +37,7 @@ local abilities = {
         id = "speed_2",
         name = "Quick Steps II",
         description = "Further increase speed by 30%",
+        icon = "ability_speed.png",
         category = "movement",
         cost = 2,
         max_level = 2,
@@ -49,6 +52,7 @@ local abilities = {
         id = "jump_2",
         name = "High Jump II",
         description = "Further increase jump by 40%",
+        icon = "ability_jump.png",
         category = "movement",
         cost = 2,
         max_level = 2,
@@ -65,6 +69,7 @@ local abilities = {
         id = "gravity_1",
         name = "Light Body",
         description = "Reduce gravity by 20%",
+        icon = "ability_gravity.png",
         category = "utility",
         cost = 2,
         max_level = 2,
@@ -79,6 +84,7 @@ local abilities = {
         id = "breath_1",
         name = "Deep Breath",
         description = "Increase breath by 5 seconds",
+        icon = "ability_breath.png",
         category = "utility",
         cost = 1,
         max_level = 3,
@@ -211,20 +217,25 @@ local function get_ability_formspec(player)
         local color = current_level > 0 and "#3a5a3a" or "#3a3a3a"
         table.insert(formspec, string.format("box[%f,%f;6,1.2;%s]", x, y, color))
         
+        -- Icon
+        if ability.icon then
+            table.insert(formspec, string.format("image[%f,%f;1,1;%s]", x + 0.1, y + 0.1, ability.icon))
+        end
+        
         -- Name and level
         table.insert(formspec, string.format("label[%f,%f;%s [%d/%d]]", 
-            x + 0.2, y + 0.25, ability.name, current_level, ability.max_level))
+            x + 1.2, y + 0.25, ability.name, current_level, ability.max_level))
         
         -- Description
         table.insert(formspec, string.format("label[%f,%f;%s]", 
-            x + 0.2, y + 0.6, ability.description))
+            x + 1.2, y + 0.6, ability.description))
         
         -- Cost and requirements
         local info = "Cost: " .. ability.cost .. " SP"
         if ability.requires then
             info = info .. " | Requires: " .. ability.requires
         end
-        table.insert(formspec, string.format("label[%f,%f;%s]", x + 0.2, y + 0.95, info))
+        table.insert(formspec, string.format("label[%f,%f;%s]", x + 1.2, y + 0.95, info))
         
         -- Unlock/upgrade button
         if current_level < ability.max_level then
