@@ -45,11 +45,11 @@ function get_crafting_formspec(player, category)
         "size[12,11.8]",
         "bgcolor[#1a1a1aff;true]",
         
-        -- Search bar
+        -- Search bar with icons
         "field[0.3,0.3;5,0.6;search_field;;" .. minetest.formspec_escape(search_filter) .. "]",
         "field_close_on_enter[search_field;false]",
-        "button[5.4,0.3;1,0.6;search_btn;Search]",
-        "button[6.5,0.3;0.8,0.6;search_clear;X]",
+        "image_button[5.4,0.3;1,0.6;gui_button_search.png;search_btn;]",
+        "image_button[6.5,0.3;0.8,0.6;gui_button_clear.png;search_clear;]",
     }
     
     -- Category tabs with glow for active category
@@ -61,12 +61,14 @@ function get_crafting_formspec(player, category)
     }
     
     for _, cat in ipairs(categories) do
+        local icon_name = "gui_category_" .. cat.id .. ".png"
         if cat.id == category then
             -- Active category - add glow boxes
             table.insert(formspec, string.format("box[%f,1.1;2,0.5;#5a9a5aff]", cat.x))
             table.insert(formspec, string.format("box[%f,1.1;2,0.5;#7aca7a55]", cat.x))
         end
-        table.insert(formspec, string.format("button[%f,1.1;2,0.5;cat_%s;%s]", cat.x, cat.id, cat.label))
+        -- Use image_button with icon and text
+        table.insert(formspec, string.format("image_button[%f,1.1;2,0.5;%s;cat_%s;%s]", cat.x, icon_name, cat.id, cat.label))
     end
     
     -- Crafting recipes area with scrollbar (compact)
@@ -122,10 +124,10 @@ function get_crafting_formspec(player, category)
         end
         table.insert(formspec, string.format("label[4.5,%f;%s]", y + 0.35, ingredients_text))
         
-        -- Quantity field and craft button
+        -- Quantity field and craft button with icon
         table.insert(formspec, string.format("field[8.2,%f;0.7,0.6;qty_%d;;1]", y + 0.05, i))
         table.insert(formspec, string.format("field_close_on_enter[qty_%d;false]", i))
-        table.insert(formspec, string.format("button[9,%f;1.6,0.6;craft_%d;Craft]", y + 0.05, i))
+        table.insert(formspec, string.format("image_button[9,%f;1.6,0.6;gui_button_craft.png;craft_%d;Craft]", y + 0.05, i))
         
         y = y + 0.75
     end

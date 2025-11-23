@@ -15,11 +15,12 @@ local function set_current_tab(player, tab)
 end
 
 -- Generate tab buttons (square icons on right side)
-local function get_tab_buttons(current_tab, show_label)
+-- Made global so other GUIs (like the outfit menu) can reuse it.
+function gui_get_tab_buttons(current_tab, show_label)
     local tabs = {
-        {id = "crafting", icon = "🔨", label = "Crafting", x = 9.5},
-        {id = "abilities", icon = "⚡", label = "Abilities", x = 10.3},
-        {id = "achievements", icon = "🏆", label = "Achievements", x = 11.1},
+        {id = "crafting", icon = "🔨", icon_img = "gui_tab_crafting.png", label = "Crafting", x = 9.5},
+        {id = "abilities", icon = "⚡", icon_img = "gui_tab_abilities.png", label = "Abilities", x = 10.3},
+        {id = "achievements", icon = "🏆", icon_img = "gui_tab_achievements.png", label = "Achievements", x = 11.1},
     }
     
     local formspec = {}
@@ -34,7 +35,7 @@ local function get_tab_buttons(current_tab, show_label)
         end
     end
     
-    -- Draw square tab buttons (0.75 size)
+    -- Draw square tab buttons (0.75 size) with icons
     for _, tab in ipairs(tabs) do
         if tab.id == current_tab then
             -- Active tab - bright green with glow
@@ -44,8 +45,9 @@ local function get_tab_buttons(current_tab, show_label)
             -- Inactive tab - dark gray
             table.insert(formspec, string.format("box[%f,0.3;0.75,0.75;#3a3a3aff]", tab.x))
         end
-        table.insert(formspec, string.format("button[%f,0.3;0.75,0.75;tab_%s;%s]", 
-            tab.x, tab.id, tab.icon))
+        -- Use image_button with icon image
+        table.insert(formspec, string.format("image_button[%f,0.3;0.75,0.75;%s;tab_%s;]", 
+            tab.x, tab.icon_img, tab.id))
     end
     
     return table.concat(formspec, "")
@@ -62,7 +64,7 @@ function get_unified_inventory(player)
     }
     
     -- Add tab buttons
-    table.insert(formspec, get_tab_buttons(current_tab))
+    table.insert(formspec, gui_get_tab_buttons(current_tab))
     
     -- Add content based on current tab
     if current_tab == "crafting" then
@@ -152,6 +154,12 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
     -- If tab changed, update inventory formspec
     if changed_tab then
         player:set_inventory_formspec(get_unified_inventory(player))
+        return
+    end
+
+    -- Clicking the player preview overlay button from any tab
+    if fields.open_outfit then
+        minetest.show_formspec(player:get_player_name(), "character_outfit", get_character_outfit_formspec(player, "HEAD"))
         return
     end
     

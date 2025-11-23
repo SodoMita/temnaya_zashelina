@@ -1013,6 +1013,8 @@ function get_ability_formspec_new(player)
         -- 3D Player Model Preview (square, static)
         "box[0.2,0.3;1.5,1.5;#1a1a1aff]",
         "model[0.3,0.4;1.3,1.3;player_preview;character.b3d;" .. table.concat(player_textures, ",") .. ";0,170;false;true;0,0]",
+        -- Invisible button overlay so clicking preview opens outfit menu
+        "image_button[0.3,0.4;1.3,1.3;;open_outfit;]",
         
         -- Header
         "box[0.2,2;13.6,0.6;#2a2a2aff]",
@@ -1202,16 +1204,16 @@ function get_ability_formspec_new(player)
     local btn_size = 0.7
     local btn_gap = 0.8
     
-    -- D-pad buttons
-    table.insert(formspec, string.format("button[%f,%f;%f,%f;nav_up;↑]", 
+    -- D-pad buttons with icons
+    table.insert(formspec, string.format("image_button[%f,%f;%f,%f;gui_button_nav_up.png;nav_up;]", 
         dp_cx, dp_cy - btn_gap, btn_size, btn_size))
-    table.insert(formspec, string.format("button[%f,%f;%f,%f;nav_down;↓]", 
+    table.insert(formspec, string.format("image_button[%f,%f;%f,%f;gui_button_nav_down.png;nav_down;]", 
         dp_cx, dp_cy + btn_gap, btn_size, btn_size))
-    table.insert(formspec, string.format("button[%f,%f;%f,%f;nav_left;←]", 
+    table.insert(formspec, string.format("image_button[%f,%f;%f,%f;gui_button_nav_left.png;nav_left;]", 
         dp_cx - btn_gap, dp_cy, btn_size, btn_size))
-    table.insert(formspec, string.format("button[%f,%f;%f,%f;nav_right;→]", 
+    table.insert(formspec, string.format("image_button[%f,%f;%f,%f;gui_button_nav_right.png;nav_right;]", 
         dp_cx + btn_gap, dp_cy, btn_size, btn_size))
-    table.insert(formspec, string.format("button[%f,%f;%f,%f;nav_reset;⊚]", 
+    table.insert(formspec, string.format("image_button[%f,%f;%f,%f;gui_button_nav_reset.png;nav_reset;]", 
         dp_cx, dp_cy, btn_size, btn_size))
     
     -- Tooltip area (click nodes to see info here)

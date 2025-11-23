@@ -489,6 +489,7 @@ function get_achievement_formspec(player)
         -- 3D Player Model Preview Box (square, static)
         "box[0.2,0.3;1.5,1.5;#1a1a1aff]",
         "model[0.3,0.4;1.3,1.3;player_preview;character.b3d;" .. table.concat(player_textures, ",") .. ";0,170;false;false;0,0]",
+        "image_button[0.3,0.4;1.3,1.3;;open_outfit;]",
         
         -- Header with stats
         "box[0.2,1.8;11.6,0.6;#2a2a2aff]",

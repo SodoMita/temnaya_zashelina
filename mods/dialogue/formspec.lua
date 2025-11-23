@@ -123,11 +123,11 @@ local function build_formspec_for(player_name)
       if x + 6.3 > 13.6 then x = 0.6; y = y + 0.9 end
     end
   else
-    -- Next/Skip button
+    -- Next/Skip button with icons
     if st.typing then
-      table.insert(fs, string.format("button[11.6,%0.2f;2.0,0.8;skip;Skip]", y-2.9))
+      table.insert(fs, string.format("image_button[11.6,%0.2f;2.0,0.8;gui_button_skip.png;skip;Skip]", y-2.9))
     else
-      table.insert(fs, string.format("button[11.6,%0.2f;2.0,0.8;next;Next]", y-2.9))
+      table.insert(fs, string.format("image_button[11.6,%0.2f;2.0,0.8;gui_button_next.png;next;Next]", y-2.9))
     end
   end
 

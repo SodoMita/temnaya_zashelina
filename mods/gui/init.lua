@@ -28,6 +28,9 @@ dofile(modpath .. "/running_system.lua")
 -- Unified inventory with tabs 📋
 dofile(modpath .. "/unified_inventory.lua")
 
+-- Character outfit / appearance menu
+dofile(modpath .. "/character_outfit.lua")
+
 -- Old broken GUI (disabled)
 -- dofile(modpath .. "/player_gui.lua")
 
